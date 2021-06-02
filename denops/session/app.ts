@@ -45,8 +45,9 @@ main(async ({ vim }) => {
 
     async getSessionFiles() {
       const files = [] as string[];
-      for await (const file of fs.expandGlob(sessionPath + "/**.vim")) {
-        console.log(file);
+      for await (
+        const file of fs.expandGlob(path.join(sessionPath, "**.vim"))
+      ) {
         if (path.isAbsolute(file.path)) {
           files.push(path.basename(file.path));
         } else {
@@ -54,7 +55,9 @@ main(async ({ vim }) => {
         }
       }
 
-      await vim.cmd("new denops://sessions | setlocal buftype=nofile");
+      await vim.cmd(
+        "setlocal buftype=nofile nomodifiable noswapfile nonumber",
+      );
       await vim.call("setline", 1, files);
       await vim.cmd(
         `nnoremap <silent> <buffer> <CR> :call denops#notify("${vim.name}", "sessionLoad", [])<CR>`,
@@ -67,6 +70,15 @@ main(async ({ vim }) => {
   );
 
   await vim.cmd(
-    `command! DenopsSessionFiles call denops#notify("${vim.name}", "getSessionFiles", [])`,
+    `command! DenopsSessionFiles new denops://sessions`,
   );
+
+  await vim.autocmd("denops_session", (helper) => {
+    helper.remove("*", "<buffer>");
+    helper.define(
+      "BufReadCmd",
+      "denops://sessions",
+      `call denops#notify("${vim.name}", "getSessionFiles", [])`,
+    );
+  });
 });
